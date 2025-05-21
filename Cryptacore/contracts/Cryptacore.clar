@@ -1,4 +1,5 @@
-;; Cryptacore: Privacy-focused Data Management on Stacks Blockchain
+;; Cryptacore: Secure and Private Data Vault on the ClarityChain Network
+
 
 ;; Constants
 (define-constant error-unauthorized (err u100))
@@ -11,6 +12,7 @@
 (define-constant error-record-id-invalid (err u107))
 (define-constant error-content-invalid (err u108))
 (define-constant error-content-type-invalid (err u109))
+(define-constant error-recipient-invalid (err u110))
 
 ;; Permission type constants
 (define-constant access-level-read "read")
@@ -83,6 +85,15 @@
 
 (define-private (is-valid-record-id (record-id (string-ascii 36)))
   (> (len record-id) u0)
+)
+
+(define-private (is-valid-recipient (recipient principal))
+  ;; Ensure the recipient is not tx-sender (to prevent self-granting)
+  ;; and is a valid principal (basic validity check)
+  (and 
+    (not (is-eq recipient tx-sender))
+    (not (is-eq recipient 'SP000000000000000000002Q6VF78))  ;; Invalid standard principal
+  )
 )
 
 (define-private (check-permission (record-owner principal) (record-id (string-ascii 36)) (requester principal) (required-access (string-ascii 10)))
@@ -235,6 +246,8 @@
     (asserts! (is-valid-record-id record-id) error-record-id-invalid)
     (asserts! (is-valid-access-type access-type) error-permission-invalid)
     (asserts! (or (is-eq expiry u0) (> expiry stacks-block-height)) error-height-invalid)
+    ;; Add validation for recipient parameter
+    (asserts! (is-valid-recipient recipient) error-recipient-invalid)
 
     (let (
       (stored-record (map-get? storage-records { record-owner: account-holder, record-id: record-id }))
@@ -260,6 +273,8 @@
     (account-holder tx-sender)
   )
     (asserts! (is-valid-record-id record-id) error-record-id-invalid)
+    ;; Add validation for recipient parameter
+    (asserts! (is-valid-recipient recipient) error-recipient-invalid)
 
     (let (
       (rights-entry (map-get? access-rights { record-owner: account-holder, record-id: record-id, user: recipient }))
